@@ -17,6 +17,9 @@ class nn:
         self.out_shape   = self.net.outputs[self.out_name].shape            # [ image_id, label, conf, xmin, ymin, xmax, ymax ]
         self.exec_net    = self.ie.load_network(self.net, device)
 
+        self.curr_id = 0
+        self.next_id = 1
+
     def preprocess(self, images: np.ndarray) -> np.ndarray:
         img_tensor = cv2.resize(images, (self.input_shape[nn._W], self.input_shape[nn._H]))
         img_tensor = img_tensor.transpose((2, 0, 1))
@@ -27,9 +30,9 @@ class nn:
     def sync_infer(self, images):
         return self.exec_net.infer(inputs={self.input_name: self.preprocess(images)}) 
 
-    def async_infer(self, images, request_id):
+    def _async_infer(self, images, request_id):
         self.exec_net.start_async(request_id=request_id, 
-            inputs={self.input_name: images})
+                                  inputs={self.input_name: self.preprocess(images)})
         return
 
     def wait(self, request_id):
@@ -44,3 +47,13 @@ class nn:
         Returns a list of the results for the output layer of the network.
         '''
         return self.exec_net.requests[request_id].outputs
+
+    def async_infer(self, images):
+        self._async_infer(images)
+        stt = self.wait(request_id= self.curr_id)
+        if stt == 0:
+            output = self.extract_output(self.curr_id)
+            return output 
+        else:
+            return None 
+
