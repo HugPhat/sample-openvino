@@ -6,17 +6,28 @@ from ..base.network import nn
 
 
 class base(metaclass=abc.ABCMeta):
-    def __init__(self, det: str, reg: str, device: str):
+    def __init__(self, det: str, reg: str, device: str, color:tuple):
         self.detector = nn(det, device)
         self.recog = nn(reg, device)
         self.curr_id = 0
         self.next_id = 1
+        self.color = color
 
     def run(self, image):
         raise NotImplemented()
     
     def recog(self, image):
         raise NotImplemented()
+
+    def draw_box(self, image, box):
+        (xmin, ymin, xmax, ymax) = box 
+        cv2.rectangle(image, (xmin, ymin - 22),
+                      (xmax, ymin), self.color, -1)
+        cv2.rectangle(image, (xmin, ymin - 22),
+                      (xmax, ymin), (255, 255, 255))
+        cv2.rectangle(image, (xmin, ymin),
+                      (xmax, ymax), self.color, 1)
+        
 
     def get_detections(self, detections, image):
         frame_h, frame_w = image.shape[:2]
