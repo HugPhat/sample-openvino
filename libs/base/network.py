@@ -11,8 +11,8 @@ class nn:
     def __init__(self, path2model:str, device='CPU') -> None:
         self.ie = IECore()
         self.net  = self.ie.read_network(path2model+'.xml', path2model+'.bin')   # ex: pedestrian-detection-adas-0002
-        self.input_name  = next(iter(self.net.inputs))                     # Input blob name "data"
-        self.input_shape = self.net.inputs[self.input_name].shape           # [1,c,h,w]
+        self.input_name  = next(iter(self.net.input_info))                     # Input blob name "data"
+        self.input_shape = self.net.input_info[self.input_name].input_data.shape           # [1,c,h,w]
         self.out_name    = next(iter(self.net.outputs))                    # Output blob name "detection_out"
         self.out_shape   = self.net.outputs[self.out_name].shape            # [ image_id, label, conf, xmin, ymin, xmax, ymax ]
         self.exec_net    = self.ie.load_network(self.net, device)
@@ -49,7 +49,7 @@ class nn:
         return self.exec_net.requests[request_id].outputs
 
     def async_infer(self, images):
-        self._async_infer(images)
+        self._async_infer(images, self.curr_id)
         stt = self.wait(request_id= self.curr_id)
         if stt == 0:
             output = self.extract_output(self.curr_id)

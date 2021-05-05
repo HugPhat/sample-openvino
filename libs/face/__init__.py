@@ -5,29 +5,26 @@ from ..base.base import base
 
 class face_age_gender(base):
 
-    def __init__(self, det:str, reg:str, device:str):
-        super(face_age_gender, self).__init__(det, reg, device)
+    def __init__(self, det:str, reg:str, device:str, color:tuple):
+        super(face_age_gender, self).__init__(det, reg, device, color)
         
-
     def run(self, image):
-        res = self.detector.sync_infer(image)
+        return 
 
-    def get_detections(self, detections, image):
-        frame_h, frame_w = image.shape[:2]
-        face_frames = []
-        boxes = []
+    def recog(self, image):
+        output = self.recognizer.async_infer(image)
+        age= output['age_conv3'].flatten()
+        genre = output['prob'].flatten()
+        age_pred = int(age*100)
+        genre_pred = np.argmax(genre)
 
-        for face_id, face in enumerate(detections):
-            box = face[3:7] * np.array([frame_w, frame_h, frame_w, frame_h])
-            (xmin, ymin, xmax, ymax) = box.astype("int")
-            boxes.append((xmin, ymin, xmax, ymax))
-            face_frame = image[ymin:ymax, xmin:xmax]
-            #face_frame = resize_frame(face_frame, resize_width)
-            face_frames.append(face_frame)
+        return age_pred, genre_pred
 
-        return face_frames, boxes
-
+    def draw_recog(self, image, recog_res):
+        print(recog_res)
+        return 
         
-        
+    def infer_video(self, frame):
+        self.run_async(frame)
 
     
