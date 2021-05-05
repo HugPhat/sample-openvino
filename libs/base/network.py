@@ -46,7 +46,7 @@ class nn:
         '''
         Returns a list of the results for the output layer of the network.
         '''
-        return self.exec_net.requests[request_id].outputs
+        return self.exec_net.requests[request_id].output_blobs
 
     def async_infer(self, images):
         self._async_infer(images, self.curr_id)
