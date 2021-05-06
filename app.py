@@ -1,127 +1,120 @@
-from flask import Flask, Response, render_template, request, jsonify, url_for
-from libs.camera import VideoCamera
-from logging import getLogger, basicConfig, DEBUG, INFO
 import os
-import sys
+
+import argparse
+
+from flask import Flask, Response, render_template, request, jsonify, url_for, redirect
+from werkzeug.utils import secure_filename
 import cv2
-import numpy as np
-import json
-import base64
-from libs.interactive_detection import Detections, Tracker
-from libs.argparser import build_argparser
-from datetime import datetime
-from openvino.inference_engine import get_version
-import configparser
+
+from main import app_run
+import config 
+
 
 app = Flask(__name__)
-logger = getLogger(__name__)
 
-basicConfig(
-    level=INFO, format="%(asctime)s %(levelname)s %(name)s %(funcName)s(): %(message)s"
-)
+MODE = os.environ.get('FLASK_ENV', 'development')
+app = Flask(__name__)
+if MODE == 'production':
+    app.config.from_object(config.ProductionConfig)
+elif MODE == 'development':
+    app.config.from_object(config.DevelopmentConfig)
 
-config = configparser.ConfigParser()
-config.read("config.ini")
+CAMERA = None
+RESULT = None
+ThumbImage = cv2.imread('public/thumb.png')
 
-# detection control flag
-is_async = eval(config.get("DEFAULT", "is_async"))
-is_det = eval(config.get("DEFAULT", "is_det"))
-is_reid = eval(config.get("DEFAULT", "is_reid"))
-
-# 0:x-axis 1:y-axis -1:both axis
-flip_code = eval(config.get("DEFAULT", "flip_code"))
-
-resize_width = int(config.get("CAMERA", "resize_width"))
-
-
-def gen(camera):
+def gen():
+    global CAMERA
+    global RESULT
     while True:
-        frame = camera.get_frame(flip_code)
-        frame = detections.person_detection(frame, is_async, is_det, is_reid)
-        ret, jpeg = cv2.imencode(".jpg", frame)
-        frame = jpeg.tostring()
-        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
-
+        if not CAMERA is None:
+            flag, frame = CAMERA.read()
+            if flag:
+                RESULT = model.run(frame,draw=True)
+                ret, jpeg = cv2.imencode(".jpg", frame)
+                frame = jpeg.tostring()
+                yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
+        else:
+            CAMERA = None
+            ret, jpeg = cv2.imencode(".jpg", ThumbImage)
+            frame = jpeg.tostring()
+            yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
 
 @app.route("/")
 def index():
     return render_template(
-        "index.html", is_async=is_async, flip_code=flip_code, enumerate=enumerate,
+        "index.html", is_async=True, enumerate=enumerate,
     )
-
 
 @app.route("/video_feed")
 def video_feed():
-    return Response(gen(camera), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route("/detection", methods=["POST"])
-def detection():
-    global is_async
-    global is_det
-    global is_reid
+@app.route("/result", methods=["GET"])
+def result():
+    if not RESULT is None:
+        return jsonify(result= RESULT)
+    else:
+        return jsonify(result='')
 
-    command = request.json["command"]
-    if command == "async":
-        is_async = True
-    elif command == "sync":
-        is_async = False
+#################
+app.config["VIDEO_UPLOADS"] = "cache"
+app.config["ALLOWED_VIDEO_EXTENSIONS"] = ["MP4"]
+app.config["MAX_FILESIZE"] = 10* 1024 * 1024
+def allowed_type(filename):
+    if not "." in filename:
+        return False
+    ext = filename.rsplit(".", 1)[1]
+    if ext.upper() in app.config["ALLOWED_VIDEO_EXTENSIONS"]:
+        return True
+    else:
+        return False
+def allowed_filesize(filesize):
+    if int(filesize) <= app.config["MAX_FILESIZE"]:
+        return True
+    else:
+        return False
 
-    if command == "person-det":
-        is_det = not is_det
-        is_reid = False
-    if command == "person-reid":
-        is_det = False
-        is_reid = not is_reid
-
-    result = {
-        "command": command,
-        "is_async": is_async,
-        "flip_code": flip_code,
-        "is_det": is_det,
-        "is_reid": is_reid,
-    }
-    logger.info(
-        "command:{} is_async:{} flip_code:{} is_det:{} is_reid:{}".format(
-            command, is_async, flip_code, is_det, is_reid
-        )
-    )
-
-    return jsonify(ResultSet=json.dumps(result))
-
-
-@app.route("/flip", methods=["POST"])
-def flip_frame():
-    global flip_code
-
-    command = request.json["command"]
-
-    if command == "flip" and flip_code is None:
-        flip_code = 0
-    elif command == "flip" and flip_code == 0:
-        flip_code = 1
-    elif command == "flip" and flip_code == 1:
-        flip_code = -1
-    elif command == "flip" and flip_code == -1:
-        flip_code = None
-
-    result = {"command": command, "is_async": is_async, "flip_code": flip_code}
-    return jsonify(ResultSet=json.dumps(result))
-
+@app.route("/upload", methods=["POST"])
+def upload_image():
+    global CAMERA
+    if request.files:
+            video = request.files["video"]
+            if video.filename == "":
+                app.logger.info("No filename")
+                return redirect(request.url_root)
+            if allowed_type(video.filename):
+                if not CAMERA is None:
+                    CAMERA.release()
+                    cv2.destroyAllWindows()
+                filename = os.path.join(app.config["VIDEO_UPLOADS"], 'video.mp4')#secure_filename(video.filename)
+                video.save(filename)#os.path.join(app.config["VIDEO_UPLOADS"], filename))
+                model.reset()
+                CAMERA = cv2.VideoCapture(filename)
+                return redirect(request.url_root)
+            else:
+                app.logger.info("That file extension is not allowed")
+                return redirect(request.url_root)
+    return redirect(request.url_root)
 
 if __name__ == "__main__":
+    
 
-    # arg parse
-    args = build_argparser().parse_args()
-    devices = [args.device, args.device_reidentification]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--age_gender', required=False,action='store_true', help='run age gender model only')
+    parser.add_argument('--person_reid', required=False,action='store_true', help='run person reid only')
+    args = parser.parse_args()
 
-    if 0 < args.grid < 3:
-        print("\nargument grid must be grater than 3")
-        sys.exit(1)
-    camera = VideoCamera(args.input, resize_width, args.v4l)
-    logger.info(
-        f"input:{args.input} v4l:{args.v4l} frame shape: {camera.frame.shape} axis:{args.axis} grid:{args.grid}"
-    )
-    detections = Detections(camera.frame, devices, args.axis, args.grid)
+    if not args.age_gender and not args.person_reid:
+        model = app_run.both()  
+    elif args.age_gender:
+        model = app_run.face_age_gender()
+    else:
+        model = app_run.person_reid()
 
-    app.run(host="0.0.0.0", threaded=True)
+    #camera = cv2.VideoCapture('videos/t4.mp4')
+
+    from waitress import serve
+
+    serve(app, host=app.config['HOST'], port=app.config['PORT'])

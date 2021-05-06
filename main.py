@@ -16,7 +16,10 @@ class app_run:
         self.person_reid = person 
         self._type = type
         self.run = run
-        
+    
+    def reset(self):
+        if self.person_reid:
+            self.person_reid.reset()
 
     @classmethod
     def face_age_gender(cls):

@@ -63,7 +63,7 @@ class base(metaclass=abc.ABCMeta):
                 face_frame = image[ymin:ymax, xmin:xmax]
                 if any(c == 0 for c in face_frame.shape):
                     continue
-                boxes.append((xmin, ymin, xmax, ymax))
+                boxes.append((int(xmin), int(ymin), int(xmax), int(ymax)))
                 conf.append(float(detection[2]))
                 det_id.append(face_frame)
             return conf, det_id, boxes
