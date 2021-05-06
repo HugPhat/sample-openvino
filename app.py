@@ -11,12 +11,12 @@ import config
 
 
 app = Flask(__name__)
-
-MODE = os.environ.get('FLASK_ENV', 'development')
-app = Flask(__name__)
+MODE = str(os.environ.get('FLASK_ENV', 'development')).strip()
 if MODE == 'production':
     app.config.from_object(config.ProductionConfig)
+    print(config.ProductionConfig)
 elif MODE == 'development':
+    print(config.DevelopmentConfig)
     app.config.from_object(config.DevelopmentConfig)
 
 CAMERA = None
@@ -87,7 +87,7 @@ def upload_image():
             if allowed_type(video.filename):
                 if not CAMERA is None:
                     CAMERA.release()
-                    cv2.destroyAllWindows()
+                    #cv2.destroyAllWindows()
                 filename = os.path.join(app.config["VIDEO_UPLOADS"], 'video.mp4')#secure_filename(video.filename)
                 video.save(filename)#os.path.join(app.config["VIDEO_UPLOADS"], filename))
                 model.reset()
@@ -116,5 +116,5 @@ if __name__ == "__main__":
     #camera = cv2.VideoCapture('videos/t4.mp4')
 
     from waitress import serve
-
+    print(app.config)
     serve(app, host=app.config['HOST'], port=app.config['PORT'])

@@ -1,0 +1,8 @@
+Flask==1.1.2
+waitress==2.0.0
+scipy==1.6.0
+Werkzeug==1.0.1
+openvino==2021.3.0
+opencv-python-headless
+numpy==1.19.5
+munkres==1.1.4

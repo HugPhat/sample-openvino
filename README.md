@@ -11,3 +11,7 @@ No arguments: Run 2models
 ```
 
 * get current result: **url/result [GET]** 
+
+* Docker, to add args to app.py, go to production.sh and set. Some commands
+  * build: docker build -t vino . 
+  * run: docker run -dp 3000:80  vino
