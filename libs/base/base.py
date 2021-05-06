@@ -23,7 +23,7 @@ class base(metaclass=abc.ABCMeta):
 
 
     @abc.abstractmethod
-    def run(self, image):
+    def run(self, image, **kwargs):
         pass #raise NotImplemented()
     @abc.abstractmethod
     def recog(self, image):
@@ -31,9 +31,6 @@ class base(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def draw_recog(self, image, box, recog_res, **kwargs):
         pass #raise NotImplemented()
-    @abc.abstractmethod
-    def infer_video(self, frame):
-        pass 
 
     def draw_box(self, image, box):
         xmin, ymin, xmax, ymax = [int(each) for each in list(box)]
@@ -108,7 +105,7 @@ class base(metaclass=abc.ABCMeta):
             if not has_frame:
                 cv2.destroyAllWindows()
                 break
-            res = self.infer_video(frame)
+            res = self.run(frame)
             if callback:
                 callback(res)
             if cv2_display:

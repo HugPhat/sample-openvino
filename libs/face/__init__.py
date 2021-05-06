@@ -8,8 +8,7 @@ class face_age_gender(base):
     def __init__(self, det:str, reg:str, device:str, color:tuple):
         super(face_age_gender, self).__init__(det, reg, device, color)
         self.gender = ['Female', 'Male']
-    def run(self, image):
-        return 
+
 
     def recog(self, image):
         output = self.recognizer.async_infer(image)
@@ -27,8 +26,8 @@ class face_age_gender(base):
                     0.5, self.color, 1, cv2.LINE_AA)
         return 
         
-    def infer_video(self, frame):
-        self.run_async(frame, det_threshold=0.6,
+    def run(self, frame, **kwargs):
+        return self.run_async(frame, det_threshold=0.6,
                        draw=True, callback=self.draw_recog)
 
     

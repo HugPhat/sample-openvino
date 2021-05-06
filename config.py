@@ -1,5 +1,7 @@
 FACE_DET_THRESH = 0.5 
 
+DEVICE = 'CPU'
+
 PERSON_REID = 'models/person/reid/person-reidentification-retail-0288'
 PERSON_DET = 'models/person/detection/person-detection-retail-0013'
 
